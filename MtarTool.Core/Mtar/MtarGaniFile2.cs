@@ -34,7 +34,7 @@ namespace MtarTool.Core.Mtar
             BinaryReader reader = new BinaryReader(input, Encoding.Default, true);
 
             hash = reader.ReadUInt64();
-            name = NameResolver.TryFindName(NameResolver.GetHashFromULong(hash));
+            name = NameResolver.TryFindName(hash); // Updated to use the new TryFindName
             offset = reader.ReadUInt32();
             size = reader.ReadInt16();
             size2 = reader.ReadInt16();
@@ -86,13 +86,13 @@ namespace MtarTool.Core.Mtar
             int size = 0x0;
             uint lineValue = 0x0;
             bool run = true;
-            
+
             input.Position = endChunkOffset;
             reader.Skip(16);
 
             while (run)
             {
-                if(input.Position != input.Length)
+                if (input.Position != input.Length)
                 {
                     lineValue = reader.ReadUInt32();
                 } //if ends

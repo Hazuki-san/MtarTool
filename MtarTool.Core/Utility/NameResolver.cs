@@ -1,162 +1,84 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
+using QuickHash.Hashing;
 
 namespace MtarTool.Core.Utility
 {
     public static class NameResolver
     {
-        static string[] dictionary = File.ReadAllLines(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + @"\mtar_dictionary.txt");
-        static string[] hashDictionary = HashDictionary(dictionary);
-
+        // The dictionary now stores the legacy hash (as a ulong, though it's a 32-bit value) and the string name.
+        static Dictionary<ulong, string> hashDictionary = new Dictionary<ulong, string>();
         static List<string> outputList = new List<string>(0);
 
-        const string ASSETS_CONST = "/Assets/";
-
-        public static string GetExtension(ulong hash)
+        // Static constructor to initialize the dictionary.
+        static NameResolver()
         {
-            ulong hashExtension = hash >> 51;
-
-            switch(hashExtension)
+            try
             {
-                case 8074: return "gani";
-            } //switch ends
-
-            return "Unknown!";
-        } //method GetExtension ends
-
-        public static string GetHashFromULong(ulong ul)
-        {
-            string hash = ul.ToString("x");
-
-            string prefix = "";
-
-            switch (hash.Substring(2, 2))
-            {
-                case "51":
-                    prefix = "1";
-                    break;
-                case "52":
-                    prefix = "2";
-                    break;
-                case "53":
-                    prefix = "3";
-                    break;
-            } //switch ends
-
-            if (hash.Substring(3)[0] == '0' && hash.Substring(4)[0] == '0')
-            {
-                return hash.Substring(5);
-            } //if ends
-
-            return prefix + hash.Substring(4);
-        } //method GetHashFromULong ends
-
-        public static string GetHashFromString(string text)
-        {
-            string toHash = text;
-
-            if(text.Contains(ASSETS_CONST))
-            {
-                toHash = text.Substring(ASSETS_CONST.Length);
-            } //if ends
-
-             return GetStrCode32(toHash).ToString("x");
-        } //method getNameHash ends
-
-        public static string TryFindName(string text)
-        {
-            for(int i = 0; i < hashDictionary.Length; i++)
-            {
-                if (text == hashDictionary[i])
+                string dictionaryPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + @"\mtar_dictionary.txt";
+                if (File.Exists(dictionaryPath))
                 {
-                    Console.WriteLine(dictionary[i]);
-                    outputList.Add(hashDictionary[i] + " = " + dictionary[i]);
-                    return dictionary[i];
-                } //if ends
-            } //for ends
+                    string[] dictionaryLines = File.ReadAllLines(dictionaryPath);
+                    foreach (string entry in dictionaryLines)
+                    {
+                        // Use the legacy hashing function on the dictionary entries.
+                        // We assume the dictionary entries do not have extensions, so removeExtension = true.
+                        ulong hash = Hashing.HashFileNameLegacy(entry, true);
+                        if (!hashDictionary.ContainsKey(hash))
+                        {
+                            hashDictionary.Add(hash, entry);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // It's good practice to handle potential exceptions, like the dictionary file not being found.
+                Console.WriteLine($"Error loading hash dictionary: {ex.Message}");
+            }
+        }
 
-            Console.WriteLine(text);
-            return text;
-        } //method TryFindName ends
+        public static string TryFindName(ulong hash)
+        {
+            // The hashes from the file are likely 64-bit, but the part we care about is the lower 32-bit value.
+            // We apply a mask to get the relevant part of the hash.
+            ulong maskedHash = hash & 0xFFFFFFFFFFFF;
+
+            if (hashDictionary.ContainsKey(maskedHash))
+            {
+                string foundName = hashDictionary[maskedHash];
+                outputList.Add($"{maskedHash:x} = {foundName}");
+                return foundName;
+            }
+
+            // Fallback for unknown hashes
+            string unknownName = $"unknown_{maskedHash:x}";
+            outputList.Add($"{maskedHash:x} = {unknownName}");
+            return unknownName;
+        }
 
         public static ulong GetHashFromName(string text)
         {
-            Console.WriteLine(text);
-            string ganiPath = Path.GetDirectoryName(text).Replace('\\', '/');
-            string ganiName = Path.GetFileNameWithoutExtension(text);
+            // This function is now primarily for repacking, and it should use the legacy hash.
+            string cleanName = Path.GetFileNameWithoutExtension(text);
 
-            if(char.IsDigit(ganiName[0]) && ganiName[4] == '_')
+            if (char.IsDigit(cleanName[0]) && cleanName.Length > 4 && cleanName[4] == '_')
             {
-                ganiName = ganiName.Substring(5);
-            } //if ends
+                cleanName = cleanName.Substring(5);
+            }
 
-            if (ganiPath != "")
-            {
-                ganiPath += "/";
-            } //if ends
-
-            text = ganiPath + ganiName;
-
-            if (text.Contains(ASSETS_CONST))
-            {
-                text = GetHashFromString(text);
-            } //if ends
-
-            string outputText = "";
-            ulong outputULong = 0x0;
-
-            while (text.Length < 13)
-            {
-                text = "0" + text;
-            } //while ends
-
-            switch(text[0])
-            {
-                case '0': outputText = "FC50" + text.Substring(1);
-                    break;
-                case '1': outputText = "FC51" + text.Substring(1);
-                    break;
-                case '2': outputText = "FC52" + text.Substring(1);
-                    break;
-                case '3': outputText = "FC53" + text.Substring(1);
-                    break;
-            } //switch ends
-
-            outputULong = Convert.ToUInt64(outputText, 16);
-
-            return outputULong;
-        } //method GetHashFromName ends
+            ulong hash = Hashing.HashFileNameLegacy(cleanName, true);
+            outputList.Add($"{hash:x} = {cleanName}");
+            return hash;
+        }
 
         public static void WriteOutputList()
         {
-            File.WriteAllLines(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + @"\hashed_names.txt", outputList);
-        } //method WriteOutputList ends
-
-        private static ulong GetStrCode32(string text)
-        {
-            const ulong seed0 = 0x9ae16a3b2f90404f;
-            byte[] seed1Bytes = new byte[sizeof(ulong)];
-            for (int i = text.Length - 1, j = 0; i >= 0 && j < sizeof(ulong); i--, j++)
-            {
-                seed1Bytes[j] = Convert.ToByte(text[i]);
-            }
-            ulong seed1 = BitConverter.ToUInt64(seed1Bytes, 0);
-            ulong maskedHash = CityHash.CityHash.CityHash64WithSeeds(text, seed0, seed1) & 0x3FFFFFFFFFFFF;
-            return maskedHash;
-        } //method GetStrCode32 ends
-
-        private static string[] HashDictionary(string[] dictionary)
-        {
-            string[] hashDictionary = new string[dictionary.Length];
-
-            for (int i = 0; i < dictionary.Length; i++)
-            {
-                hashDictionary[i] = GetHashFromString(dictionary[i]);
-            } //for ends
-
-            return hashDictionary;
-        } //method HashDictionary ends
-    } //class NameResolver ends
+            // To avoid duplicates from both finding and generating hashes, we can use LINQ's Distinct().
+            File.WriteAllLines(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + @"\hashed_names.txt", outputList.Distinct().ToList());
+        }
+    }
 }

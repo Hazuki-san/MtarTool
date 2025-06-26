@@ -25,7 +25,7 @@ namespace MtarTool.Core.Mtar
             BinaryReader reader = new BinaryReader(input, Encoding.Default, true);
 
             hash = reader.ReadUInt64();
-            name = NameResolver.TryFindName(NameResolver.GetHashFromULong(hash)) + ".gani";
+            name = NameResolver.TryFindName(hash) + ".gani"; // Updated to use the new TryFindName
             offset = reader.ReadUInt32();
             size = reader.ReadInt32();
         } //method Read ends
