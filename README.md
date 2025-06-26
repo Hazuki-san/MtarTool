@@ -1,7 +1,7 @@
 # MtarTool
-.mtar (Motion Archive) unpacker and repacker for Metal Gear Solid V: The Phantom Pain.
+.mtar (Motion Archive) unpacker and repacker for Pro Evolution Soccer 2017+ series.
 
-Allows you to extract MGSV's animation files (.gani) from the motion archive containers.
+Allows you to extract PES's animation files (.gani) from the motion archive containers.
 
 ## Usage:
 
@@ -20,18 +20,10 @@ Set the -n parameter to add a four digit id to the beginning of every file's nam
 
 ## File Format Descriptions:
 
-**.gani**: MGSV's animation format.
-
-**.trk**: Description of all main animation tracks for an Mtar Type 2 file.
-
-**.chnk**: A chunk of data with an unknown purpose belonging to an Mtar Type 2 file.
-
-**.exchnk**: An extra chunk of animation tied to a .gani file from an Mtar Type 2 file. If the .gani file is swapped this should be brought
-along with it.
-
-**.enchnk**: A chunk of animation at the bottom of an Mtar Type 2 file. Tied to a .gani file. Should be brought along with a swapped .gani
-file.
+**.gani**: PES's animation format.
 
 ## Credits:
 
-Thanks to id-daemon (daemon1) for giving me helpful information about the Mtar Type 2 format.
+BobDoleOwndU - Original MTARTool, QuickHash algro
+
+kapuragu - Fox Engine Templates
